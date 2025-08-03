@@ -1,0 +1,820 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>90-Day Study Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .main-container {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            max-width: 100%;
+            margin: 0 auto;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            border-radius: 0.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Glossy effect pseudo-element */
+        .main-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(255, 255, 255, 0.15) 0%,
+                rgba(255, 255, 255, 0) 50%
+            );
+            pointer-events: none;
+            border-radius: 0.75rem;
+        }
+
+        h1 {
+            color: #343a40;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            font-size: 2.25rem;
+            text-align: center;
+        }
+        
+        h2 {
+            color: #495057;
+            font-weight: 600;
+            font-size: 1.25rem;
+            margin-top: 1rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 2px solid #e9ecef;
+            display: inline-block;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 25vh;
+        }
+
+        .card {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease-in-out;
+        }
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* PCB circuit style */
+        .pcb-card {
+            background-color: #212121;
+            border: 2px solid #333;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .pcb-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 5px 5px;
+            opacity: 0.2;
+            pointer-events: none;
+        }
+        .pcb-title {
+            color: #f0f0f0;
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 0.5rem;
+            z-index: 10;
+        }
+        .pcb-leds {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(12px, 1fr));
+            gap: 0.25rem;
+            padding: 0.5rem 0;
+            z-index: 10;
+        }
+        .led-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+        }
+        .led-wrapper:hover .led-trace {
+            transform: scaleY(1.5);
+        }
+        .led-trace {
+            width: 1px;
+            height: 8px;
+            background-color: #6c757d;
+            box-shadow: 0 0 2px #6c757d;
+            margin-bottom: 2px;
+            transition: transform 0.2s ease-in-out;
+        }
+        .led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #495057;
+            border: 1px solid #6c757d;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            transition: all 0.3s ease-in-out;
+        }
+        .led.on {
+            background-color: #ef233c;
+            box-shadow: 0 0 5px 2px rgba(239, 35, 60, 0.7), 0 0 10px rgba(239, 35, 60, 0.4);
+        }
+        
+        .footer {
+            margin-top: auto;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6c757d;
+            padding-top: 1rem;
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: translateY(0);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .modal-header h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #343a40;
+        }
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #adb5bd;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+        }
+        .modal-body textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #ced4da;
+            font-size: 1rem;
+            line-height: 1.5;
+            resize: vertical;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+        .modal-save-button {
+            background-color: #007bff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+        .modal-save-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Styles for the tree-like notes */
+        .note-tree-container {
+            overflow-y: auto;
+            max-height: 400px;
+            padding: 0.5rem;
+        }
+        .note-tree {
+            list-style-type: none;
+            padding-left: 1rem;
+        }
+        .note-tree li {
+            position: relative;
+            line-height: 1.5;
+        }
+        .note-tree-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .note-text {
+            flex-grow: 1;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+        }
+        .note-text:hover {
+            background-color: #e9ecef;
+        }
+        .note-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+        .note-action-btn {
+            background-color: #adb5bd;
+            color: white;
+            border-radius: 0.25rem;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .note-action-btn:hover {
+            background-color: #6c757d;
+        }
+        
+        /* New animation styles for the tree */
+        .note-tree-item.new-item {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <header>
+            <h1>90-Day Study Tracker</h1>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <div class="card">
+                <h2>Daily Consistency</h2>
+                <div id="dailyConsistencyGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- PCB-style cards will be rendered here by JavaScript -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Subject Performance</h2>
+                <div class="chart-container">
+                    <canvas id="subjectPerformanceChart"></canvas>
+                </div>
+            </div>
+        </main>
+
+        <section class="mt-4">
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2>Key Learning Points</h2>
+                    <button id="addNewTopicBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-600 transition-colors">Add New Topic</button>
+                </div>
+                <div id="keyNotesTree" class="note-tree-container">
+                    <!-- Tree structure will be rendered here -->
+                </div>
+            </div>
+        </section>
+        
+        <footer class="footer">
+            <p>Your progress is a reflection of your hard work.</p>
+        </footer>
+    </div>
+    
+    <!-- Note Modal -->
+    <div id="noteModalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="noteModalTitle">Edit Note</h3>
+                <button class="close-button" onclick="closeNoteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="noteTextarea" placeholder="Write your key learning points here..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-save-button" onclick="saveNote()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Custom Chart.js plugin to display percentage labels on bars
+        const percentageLabelPlugin = {
+            id: 'percentageLabel',
+            afterDatasetsDraw: (chart, args, options) => {
+                const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+                ctx.save();
+                
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    if (!meta.type || !meta.visible) {
+                        return;
+                    }
+                    
+                    meta.data.forEach((bar, index) => {
+                        const percentage = dataset.data[index];
+                        if (percentage === 0) return;
+
+                        ctx.fillStyle = FONT_COLOR;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.font = 'bold 10px Inter';
+
+                        const x = bar.x;
+                        const y = bar.y - 5;
+                        const text = `${percentage.toFixed(0)}%`;
+                        ctx.fillText(text, x, y);
+                    });
+                });
+                ctx.restore();
+            }
+        };
+
+        let subjectPerformanceChart;
+        let subjectDoughnutCharts = {};
+        
+        const FONT_COLOR = '#495057';
+        const GRID_COLOR = 'rgba(233, 236, 239, 1)';
+        const PALETTE = [
+            '#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6610f2', '#fd7e14', '#e83e8c',
+            '#0096c7', '#5a189a', '#ef476f', '#f77f00', '#2d6a4f', '#4895ef', '#7b4c9e', '#f4e285',
+            '#8d99ae', '#3a0ca3', '#009aae', '#f8d210'
+        ];
+        
+        const NUM_DAYS = 90;
+        const subjects = [
+            'CCNP ENCOR 1.1', 'AWS', 'Linux'
+        ];
+        const subjectColors = {};
+        subjects.forEach((subj, i) => subjectColors[subj] = PALETTE[i % PALETTE.length]);
+
+        // Daily tracker data
+        const createRandomData = () => {
+            const data = [];
+            for (const subject of subjects) {
+                const days = [];
+                for (let i = 0; i < NUM_DAYS; i++) {
+                    days.push({ completed: Math.random() > 0.5 ? 1 : 0, note: '' });
+                }
+                data.push({ subject, days });
+            }
+            return data;
+        };
+        let rawData = createRandomData();
+
+        // Key notes data structure
+        let keyNotes = [
+            {
+                id: 1,
+                text: "Networking Fundamentals",
+                subtopics: [
+                    { id: 2, text: "OSI Model Layers", subtopics: [] },
+                    { id: 3, text: "TCP/IP Protocol Suite", subtopics: [] }
+                ]
+            },
+            {
+                id: 4,
+                text: "AWS Core Services",
+                subtopics: [
+                    { id: 5, text: "EC2 & Virtual Machines", subtopics: [] },
+                    { id: 6, text: "S3 & Cloud Storage", subtopics: [] },
+                    { id: 7, text: "VPC & Networking", subtopics: [] }
+                ]
+            }
+        ];
+        let nextNoteId = 8;
+        
+        // Global variables for the currently open note modal
+        let currentNoteReference = null;
+        let noteModalType = ''; // 'daily' or 'tree'
+
+        const wrapLabel = (label, maxLength = 16) => {
+            if (label.length <= maxLength) return label;
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = '';
+            for (const word of words) {
+                if ((currentLine + word).length > maxLength) {
+                    lines.push(currentLine.trim());
+                    currentLine = '';
+                }
+                currentLine += word + ' ';
+            }
+            lines.push(currentLine.trim());
+            return lines;
+        };
+
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            return Array.isArray(label) ? label.join(' ') : label;
+        };
+        
+        const SHARED_CHART_OPTIONS = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: FONT_COLOR,
+                        font: {
+                            family: 'Inter',
+                            size: 10,
+                            weight: 500
+                        },
+                        boxWidth: 10,
+                        boxHeight: 10
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: tooltipTitleCallback
+                    },
+                    backgroundColor: 'rgba(52, 58, 64, 0.9)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    titleFont: { size: 12, family: 'Inter', weight: 600 },
+                    bodyFont: { size: 10, family: 'Inter' },
+                    padding: 8,
+                    cornerRadius: 4,
+                    borderColor: '#495057',
+                    borderWidth: 1
+                }
+            }
+        };
+
+        // Renders the PCB-style consistency grid with interactive LEDs
+        const createPcbConsistencyVisuals = () => {
+            const container = document.getElementById('dailyConsistencyGrid');
+            container.innerHTML = '';
+            
+            rawData.forEach((subjectData, subjectIndex) => {
+                const pcbCard = document.createElement('div');
+                pcbCard.className = 'pcb-card';
+                
+                const title = document.createElement('div');
+                title.className = 'pcb-title';
+                title.innerText = subjectData.subject;
+                pcbCard.appendChild(title);
+                
+                const ledsContainer = document.createElement('div');
+                ledsContainer.className = 'pcb-leds';
+
+                subjectData.days.forEach((dayData, dayIndex) => {
+                    const ledWrapper = document.createElement('div');
+                    ledWrapper.className = 'led-wrapper';
+
+                    const ledTrace = document.createElement('div');
+                    ledTrace.className = 'led-trace';
+
+                    const led = document.createElement('div');
+                    led.className = `led ${dayData.completed === 1 ? 'on' : ''}`;
+                    
+                    // Single click to toggle completion status
+                    ledWrapper.onclick = () => toggleDayCompletion(subjectIndex, dayIndex);
+                    
+                    // Double click to open the note modal
+                    ledWrapper.ondblclick = () => openNoteModal({ type: 'daily', subjectIndex, dayIndex });
+
+                    ledWrapper.appendChild(ledTrace);
+                    ledWrapper.appendChild(led);
+                    ledsContainer.appendChild(ledWrapper);
+                });
+                
+                pcbCard.appendChild(ledsContainer);
+                container.appendChild(pcbCard);
+            });
+        };
+
+        const createSubjectPerformanceChart = () => {
+            if (subjectPerformanceChart) { subjectPerformanceChart.destroy(); }
+
+            const subjectData = rawData.map(item => ({
+                subject: item.subject,
+                percentage: (item.days.reduce((sum, day) => sum + day.completed, 0) / NUM_DAYS) * 100
+            }));
+
+            const ctx = document.getElementById('subjectPerformanceChart').getContext('2d');
+            subjectPerformanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: subjectData.map(d => wrapLabel(d.subject, 10)),
+                    datasets: [{
+                        label: 'Completion Percentage',
+                        data: subjectData.map(d => d.percentage),
+                        backgroundColor: subjectData.map(d => subjectColors[d.subject]),
+                        borderColor: FONT_COLOR,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { color: FONT_COLOR, font: { family: 'Inter', size: 10, weight: 500 } },
+                            grid: { color: GRID_COLOR },
+                        },
+                        y: {
+                            max: 100,
+                            ticks: { color: FONT_COLOR, font: { family: 'Inter', size: 10, weight: 500 } },
+                            grid: { drawOnChartArea: false },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        ...SHARED_CHART_OPTIONS.plugins,
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.parsed.y;
+                                    return `${label}: ${value.toFixed(1)}%`;
+                                }
+                            }
+                        },
+                        percentageLabel: {}
+                    }
+                },
+                plugins: [percentageLabelPlugin]
+            });
+        };
+
+        const updateAllCharts = () => {
+            createSubjectPerformanceChart();
+            createPcbConsistencyVisuals();
+        };
+
+        const findNoteById = (id, notes) => {
+            for (const note of notes) {
+                if (note.id === id) {
+                    return note;
+                }
+                if (note.subtopics.length > 0) {
+                    const subtopicResult = findNoteById(id, note.subtopics);
+                    if (subtopicResult) return subtopicResult;
+                }
+            }
+            return null;
+        };
+
+        const openNoteModal = (ref) => {
+            currentNoteReference = ref;
+            noteModalType = ref.type;
+            
+            const modalOverlay = document.getElementById('noteModalOverlay');
+            const noteTitle = document.getElementById('noteModalTitle');
+            const noteTextarea = document.getElementById('noteTextarea');
+            
+            if (ref.type === 'daily') {
+                noteTitle.innerText = `${subjects[ref.subjectIndex]} - Day ${ref.dayIndex + 1}`;
+                noteTextarea.value = rawData[ref.subjectIndex].days[ref.dayIndex].note;
+            } else if (ref.type === 'tree') {
+                const note = findNoteById(ref.id, keyNotes);
+                noteTitle.innerText = 'Edit Key Point';
+                noteTextarea.value = note ? note.text : '';
+            }
+            
+            modalOverlay.classList.add('visible');
+        };
+
+        const closeNoteModal = () => {
+            const modalOverlay = document.getElementById('noteModalOverlay');
+            modalOverlay.classList.remove('visible');
+            currentNoteReference = null;
+            noteModalType = '';
+        };
+
+        const saveNote = () => {
+            const noteTextarea = document.getElementById('noteTextarea');
+            const noteContent = noteTextarea.value;
+            
+            if (noteModalType === 'daily') {
+                const { subjectIndex, dayIndex } = currentNoteReference;
+                rawData[subjectIndex].days[dayIndex].note = noteContent;
+            } else if (noteModalType === 'tree') {
+                const note = findNoteById(currentNoteReference.id, keyNotes);
+                if (note) {
+                    note.text = noteContent;
+                }
+                renderKeyNotesTree();
+            }
+            
+            closeNoteModal();
+        };
+        
+        const toggleDayCompletion = (subjectIndex, dayIndex) => {
+            const dayData = rawData[subjectIndex].days[dayIndex];
+            dayData.completed = dayData.completed === 1 ? 0 : 1;
+            
+            updateAllCharts();
+        };
+
+        const addNewTopic = () => {
+            const newNote = {
+                id: nextNoteId++,
+                text: 'New Topic',
+                subtopics: []
+            };
+            keyNotes.push(newNote);
+            renderKeyNotesTree(newNote.id); // Pass the ID to scroll to it
+        };
+
+        const addSubtopic = (id) => {
+            const parentNote = findNoteById(id, keyNotes);
+            if (parentNote) {
+                const newNote = {
+                    id: nextNoteId++,
+                    text: 'New Subtopic',
+                    subtopics: []
+                };
+                parentNote.subtopics.push(newNote);
+                renderKeyNotesTree(newNote.id); // Pass the ID to scroll to it
+            }
+        };
+
+        const removeNote = (id) => {
+            const removeRecursive = (notesArray) => {
+                for (let i = 0; i < notesArray.length; i++) {
+                    if (notesArray[i].id === id) {
+                        notesArray.splice(i, 1);
+                        return true;
+                    }
+                    if (notesArray[i].subtopics && notesArray[i].subtopics.length > 0) {
+                        if (removeRecursive(notesArray[i].subtopics)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+            
+            removeRecursive(keyNotes);
+            renderKeyNotesTree();
+        };
+        
+        // Modified render function to add animation class and scroll to new item
+        const renderKeyNotesTree = (newNoteId = null) => {
+            const treeContainer = document.getElementById('keyNotesTree');
+            treeContainer.innerHTML = '';
+            
+            const renderBranch = (branch, parentElement) => {
+                const ul = document.createElement('ul');
+                ul.className = 'note-tree';
+                
+                branch.forEach(note => {
+                    const li = document.createElement('li');
+                    
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'note-tree-item';
+                    itemDiv.id = `note-item-${note.id}`;
+
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'note-text';
+                    textSpan.innerText = note.text;
+                    itemDiv.appendChild(textSpan);
+                    
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'note-actions';
+
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'note-action-btn';
+                    addBtn.innerText = '+';
+                    addBtn.onclick = () => addSubtopic(note.id);
+                    actionsDiv.appendChild(addBtn);
+
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'note-action-btn';
+                    editBtn.innerText = '📝';
+                    editBtn.onclick = () => openNoteModal({ type: 'tree', id: note.id });
+                    actionsDiv.appendChild(editBtn);
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'note-action-btn';
+                    removeBtn.innerText = '🗑️';
+                    removeBtn.onclick = () => removeNote(note.id);
+                    actionsDiv.appendChild(removeBtn);
+
+                    itemDiv.appendChild(actionsDiv);
+                    li.appendChild(itemDiv);
+                    parentElement.appendChild(li);
+
+                    if (note.subtopics && note.subtopics.length > 0) {
+                        renderBranch(note.subtopics, li);
+                    }
+                });
+                parentElement.appendChild(ul);
+            };
+
+            const rootElement = document.createElement('ul');
+            rootElement.className = 'note-tree';
+            treeContainer.appendChild(rootElement);
+            renderBranch(keyNotes, rootElement);
+            
+            // Handle animation and auto-scrolling for the new item
+            if (newNoteId !== null) {
+                const newItem = document.getElementById(`note-item-${newNoteId}`);
+                if (newItem) {
+                    // Add animation class to the new item
+                    newItem.classList.add('new-item');
+                    
+                    // Auto-scroll to the new item
+                    const treeContainer = document.getElementById('keyNotesTree');
+                    newItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAllCharts();
+            renderKeyNotesTree();
+            
+            document.getElementById('addNewTopicBtn').addEventListener('click', addNewTopic);
+        });
+    </script>
+</body>
+</html>
+
